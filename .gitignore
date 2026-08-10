@@ -1,0 +1,16 @@
+# Save data
+save/
+*.rpgsave
+
+# OS junk
+.fseventsd/
+.Spotlight-V100/
+.DS_Store
+Thumbs.db
+
+# Editor / local tooling
+Qsprite Editor/
+node_modules/
+
+# Design docs (internal)
+ideas/
