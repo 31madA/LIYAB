@@ -34,5 +34,5 @@ null,
 {"id":32,"expanded":true,"name":"MAP032","order":33,"parentId":31,"scrollX":1663.5,"scrollY":1443},
 {"id":33,"expanded":false,"name":"MAP033","order":34,"parentId":32,"scrollX":1092,"scrollY":641.3333333333334},
 {"id":34,"expanded":false,"name":"Storage room","order":10,"parentId":7,"scrollX":728,"scrollY":426.6666666666667},
-{"id":35,"expanded":false,"name":"Testing Area","order":35,"parentId":0,"scrollX":595.6363636363636,"scrollY":347.6363636363636}
+{"id":35,"expanded":false,"name":"Testing Area","order":35,"parentId":0,"scrollX":728,"scrollY":424.8888888888889}
 ]

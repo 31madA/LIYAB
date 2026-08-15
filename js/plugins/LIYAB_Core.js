@@ -45,6 +45,15 @@
  * @desc Comma-separated class IDs that count as Katipunan (the aura targets).
  * @default 7,8,9,10,11,12,13,14,15,16
  *
+ * @param ---Chapter Names---
+ * @default
+ *
+ * @param Chapter Variable Id
+ * @desc Game variable that holds the current chapter number. Class/weapon/skill
+ * names with a <Chapter Name[n]> notetag swap when this variable changes.
+ * @type number
+ * @default 1
+ *
  * @help
  * ============================================================================
  * LIYAB CORE
@@ -72,6 +81,24 @@
  *   State notetags: <Katipunan Aura: x%> (boosts Katipunan-class allies'
  *   MHP/MMP/ATK/DEF/MAT/MDF/AGI) and <Vengeance On Death> (applies the
  *   Vengeance state to the party when the bearer dies for a random 5-7 turns).
+ *
+ * CHAPTER NAMES
+ *   Class/Weapon/Skill notetag: <Chapter Name[n]: New Name>
+ *   When the Chapter Variable equals n, the object's display name becomes
+ *   "New Name". Set the variable to any other value and the base (editor) name
+ *   is restored, so renames revert naturally when a player returns to an
+ *   earlier chapter. Multiple tags on one object give it a different name per
+ *   chapter.
+ *   Example (Sapper class):
+ *     Base name: "Sapper (Inhinyero)"   (editor field)
+ *     Notetag:   <Chapter Name[4]: Sapper (Demolisyunista)>
+ *   Set the Chapter Variable Id param to the game variable that tracks the
+ *   current chapter (default 1). Just set that variable in a story event
+ *   (Control Variables) and the rename applies automatically.
+ *   Plugin command: LIYAB SetChapter x  — sets the variable and re-evaluates
+ *   every chapter-name notetag. Class names shown in menus/status update too;
+ *   battle windows draw names when they open, so the new name appears from the
+ *   next scene refresh onward.
  * ============================================================================
  */
 (function() {
@@ -652,5 +679,85 @@ return this['_liyabReloadCastTurn'] || 0;
       }, this);
     }
   };
+
+})();
+
+
+(function() {
+  'use strict';
+
+  //=============================================================================
+  // CHAPTER NAMES — rename classes/weapons/skills by the current chapter
+  //=============================================================================
+  var parameters = PluginManager.parameters('LIYAB_Core');
+  var chapterVarId = Number(parameters['Chapter Variable Id'] || 1);
+  var nameCache = { classes: {}, weapons: {}, skills: {} };
+
+  function chapterNames(obj, type) {
+    if (!obj) return null;
+    if (nameCache[type][obj.id]) return nameCache[type][obj.id];
+    var renames = {};
+    var notes = obj.note || '';
+    var re = /<Chapter\s+Name\[(\d+)\]:\s*([^>]+)>/gi;
+    var m;
+    while ((m = re.exec(notes))) {
+      renames[parseInt(m[1], 10)] = m[2].trim();
+    }
+    nameCache[type][obj.id] = { base: obj.name, renames: renames };
+    return nameCache[type][obj.id];
+  }
+
+  function currentChapter() {
+    if (!$gameVariables) return 0;
+    var v = $gameVariables.value(chapterVarId);
+    return typeof v === 'number' ? v : 0;
+  }
+
+  function applyChapterNames() {
+    if (!$gameParty) return;
+    var chapter = currentChapter();
+    [['classes', $dataClasses], ['weapons', $dataWeapons], ['skills', $dataSkills]]
+      .forEach(function(pair) {
+        var type = pair[0];
+        var list = pair[1];
+        for (var i = 0; i < list.length; i++) {
+          var obj = list[i];
+          if (!obj) continue;
+          var entry = chapterNames(obj, type);
+          if (!entry || Object.keys(entry.renames).length === 0) continue;
+          obj.name = entry.renames.hasOwnProperty(chapter)
+            ? entry.renames[chapter]
+            : entry.base;
+        }
+      });
+  }
+
+  var _Game_Variables_setValue = Game_Variables.prototype.setValue;
+  Game_Variables.prototype.setValue = function(variableId, value) {
+    _Game_Variables_setValue.call(this, variableId, value);
+    if (variableId === chapterVarId && $gameParty) {
+      applyChapterNames();
+    }
+  };
+
+  var _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
+  Game_Interpreter.prototype.pluginCommand = function(command, args) {
+    _Game_Interpreter_pluginCommand.call(this, command, args);
+    if (command === 'LIYAB' && args[0] === 'SetChapter' && args[1] !== undefined) {
+      var ch = parseInt(args[1], 10);
+      if (!isNaN(ch)) {
+        $gameVariables.setValue(chapterVarId, ch);
+      }
+    }
+  };
+
+  ['loadGame', 'setupNewGame'].forEach(function(method) {
+    var alias = DataManager[method];
+    DataManager[method] = function() {
+      var result = alias.apply(this, arguments);
+      applyChapterNames();
+      return result;
+    };
+  });
 
 })();
